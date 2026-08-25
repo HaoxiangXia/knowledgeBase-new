@@ -59,21 +59,57 @@ export default {
         .map((item) => ({ ...item, views: viewMap.get(item.page) ?? 0 }))
         .sort((left, right) => right.views - left.views || left.page.localeCompare(right.page));
 
-      // 近 14 天每日新增（UTC+8）；表还不存在或查询失败时返回空数组，页面显示暂无数据
+      // 读取明细：daily_views 按 (page, day) 记录每天每篇的新增，据此拆出
+      //  - daily[*].top   某天新增最多的文章（供柱状图悬停提示）
+      //  - items[*].series 每篇近 14 天的新增序列（供排行榜小字展示）
+      const days = lastDaysUtc8(14).map((entry) => entry.day);
+      const titleMap = new Map(pageTitles.map((item) => [item.page, item.title]));
       let daily = [];
+      let seriesMap = new Map();
       try {
-        const { results: dailyRows } = await env.DB.prepare(
-          'SELECT day, SUM(views) AS views FROM daily_views GROUP BY day'
+        const { results: rows } = await env.DB.prepare(
+          'SELECT page, day, views FROM daily_views'
         ).all();
-        const byDay = new Map(
-          (dailyRows || []).map((row) => [row.day, Number(row.views) || 0])
+        const byDayOfPage = new Map(); // day -> Map(page -> views)
+        const byPageOfDay = new Map(); // page -> Map(day -> views)
+        for (const row of rows || []) {
+          const page = String(row.page);
+          const day = String(row.day);
+          const views = Number(row.views) || 0;
+          if (!byDayOfPage.has(day)) byDayOfPage.set(day, new Map());
+          byDayOfPage.get(day).set(page, (byDayOfPage.get(day).get(page) || 0) + views);
+          if (!byPageOfDay.has(page)) byPageOfDay.set(page, new Map());
+          byPageOfDay.get(page).set(day, (byPageOfDay.get(page).get(day) || 0) + views);
+        }
+
+        daily = days.map((day) => {
+          const per = byDayOfPage.get(day);
+          let total = 0;
+          let top = [];
+          if (per) {
+            for (const views of per.values()) total += views;
+            top = [...per.entries()]
+              .map(([page, views]) => ({ page, title: titleMap.get(page) || page, views }))
+              .filter((entry) => entry.views > 0)
+              .sort((a, b) => b.views - a.views)
+              .slice(0, 8);
+          }
+          return { day, views: total, top };
+        });
+
+        seriesMap = new Map(
+          pageTitles.map((item) => {
+            const per = byPageOfDay.get(item.page);
+            return [item.page, days.map((day) => ({ day, views: per ? (per.get(day) || 0) : 0 }))];
+          })
         );
-        daily = lastDaysUtc8(14).map((entry) => ({
-          day: entry.day,
-          views: byDay.get(entry.day) ?? 0,
-        }));
       } catch {
         daily = [];
+        seriesMap = new Map();
+      }
+
+      for (const item of items) {
+        item.series = seriesMap.get(item.page) || days.map((day) => ({ day, views: 0 }));
       }
 
       return json({ generatedAt: new Date().toISOString(), items, daily }, 200);

@@ -78,6 +78,17 @@ export const RANKING_PAGE_HTML = `<!doctype html>
   .share { color: var(--muted); font-size: .7rem; margin-top: 1px; }
   .item.zero { opacity: .45; }
   .empty { color: var(--muted); text-align: center; padding: 20px 0; font-size: .9rem; }
+  .tooltip {
+    position: fixed; z-index: 50; pointer-events: none; min-width: 200px; max-width: 320px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: .76rem; line-height: 1.45;
+    box-shadow: 0 6px 18px rgba(0,0,0,.15);
+  }
+  .tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 10px; }
+  .tooltip .tt-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .tooltip .tt-empty { color: var(--muted); }
+  .mini { color: var(--muted); font-size: .68rem; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   @media (max-width: 900px) {
     .charts { grid-template-columns: 1fr; }
   }
@@ -130,14 +141,31 @@ export const RANKING_PAGE_HTML = `<!doctype html>
 
   <div class="error" id="error"></div>
   <div class="list" id="list"><div class="empty">加载中…</div></div>
+  <div class="tooltip" id="tooltip" hidden></div>
 </div>
 
 <script>
 const errorBox = document.getElementById('error')
 const listBox = document.getElementById('list')
 const filterInput = document.getElementById('filter')
+const tooltip = document.getElementById('tooltip')
 const MEDALS = ['🥇', '🥈', '🥉']
 const PIE_COLORS = ['#2f6fed', '#4b8bb4', '#5ca7a1', '#6fa46e', '#b28a4e', '#b45f5f', '#a45f8e', '#7a7ac4', '#8a8f98']
+
+function showTooltip(html, event) {
+  tooltip.innerHTML = html
+  tooltip.hidden = false
+  const pad = 12
+  const left = Math.min(event.clientX + pad, window.innerWidth - tooltip.offsetWidth - pad)
+  const top = Math.min(event.clientY + pad, window.innerHeight - tooltip.offsetHeight - pad)
+  tooltip.style.left = left + 'px'
+  tooltip.style.top = top + 'px'
+}
+
+function hideTooltip() {
+  tooltip.hidden = true
+  tooltip.innerHTML = ''
+}
 
 async function load() {
   errorBox.style.display = 'none'
@@ -262,6 +290,16 @@ function renderList(data) {
     track.appendChild(fill)
     main.append(title, path, track)
 
+    // 小字展示近 7 天每日新增（+N），悬停看明细
+    if (Array.isArray(item.series) && item.series.length) {
+      const recent = item.series.slice(-7)
+      const mini = document.createElement('div')
+      mini.className = 'mini'
+      mini.textContent = '近7天 ' + recent.map((entry) => (entry.views > 0 ? '+' + entry.views : '0')).join(' ')
+      mini.title = recent.map((entry) => entry.day.slice(5) + ' +' + entry.views).join(' · ')
+      main.appendChild(mini)
+    }
+
     const right = document.createElement('div')
     right.className = 'right'
     const views = document.createElement('div')
@@ -298,6 +336,29 @@ function renderDaily(daily) {
     name.title = entry.day
     col.append(val, area, name)
     box.appendChild(col)
+
+    // 悬停显示当天新增来源于哪些文章
+    col.addEventListener('mouseenter', (event) => {
+      let html = '<div class="tt-title">' + entry.day + ' · 新增 ' + entry.views.toLocaleString('zh-CN') + '</div>'
+      const top = entry.top || []
+      if (top.length === 0) {
+        html += '<div class="tt-empty">当天没有阅读</div>'
+      } else {
+        for (const row of top.slice(0, 5)) {
+          html += '<div class="tt-row"><span class="tt-name">' + row.title + '</span><span>+' + row.views + '</span></div>'
+        }
+        if (top.length > 5) html += '<div class="tt-empty">等 ' + top.length + ' 篇文章</div>'
+      }
+      showTooltip(html, event)
+    })
+    col.addEventListener('mousemove', (event) => {
+      if (!tooltip.hidden) {
+        const pad = 12
+        tooltip.style.left = Math.min(event.clientX + pad, window.innerWidth - tooltip.offsetWidth - pad) + 'px'
+        tooltip.style.top = Math.min(event.clientY + pad, window.innerHeight - tooltip.offsetHeight - pad) + 'px'
+      }
+    })
+    col.addEventListener('mouseleave', hideTooltip)
   }
 }
 

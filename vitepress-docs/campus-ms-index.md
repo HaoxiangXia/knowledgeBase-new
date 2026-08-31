@@ -1,5 +1,5 @@
 ---
-description: 燕山大学正版软件管理与服务平台（software.ysu.edu.cn）面向师生提供 Windows、Office、Visio、WPS、福昕 PDF 编辑器、中望 CAD、MWORKS 等软件。本文说明平台入口，以及常用软件的下载和安装指引在哪里查看。
+description: 燕山大学正版软件管理与服务平台（software.ysu.edu.cn）面向师生提供 Windows、Office、Visio、WPS、福昕 PDF 编辑器、WPS、中望 CAD、MWORKS 等软件。本文说明平台入口，以及常用软件的下载和安装指引在哪里查看。
 tags:
   - 正版化
   - 校园服务
@@ -55,6 +55,15 @@ authors:
 ![福昕PDF编辑器](./images/campus/ms/foxit.png)
 ![福昕PDF编辑器-Windows](./images/campus/ms/foxit_Windows.png)
 进入详情页后，可下载安装文件并查看安装指引。
+
+### WPS（2026新增）
+
+在主页点击`WPS`板块，再选择与自己操作系统匹配的版本。
+![WPS](./images/campus/ms/wps.png)
+进入详情页后，可下载安装文件并查看安装指引。
+
+![WPS-login](./images/campus/ms/wps_login.png)
+安装完成后，在校园网环境下打开会自动跳转ysu统一身份认证页面，使用统一身份认证密码登录即可获取WPS教育权益。
 
 ### 更多软件
 
